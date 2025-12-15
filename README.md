@@ -244,9 +244,36 @@ MIT License - see LICENSE file for details
 ## 📞 Support
 
 - Documentation: See `/docs` folder
-- Issues: GitHub Issues
+- Issues: [GitHub Issues](https://github.com/yourusername/ChainCompass-AI/issues)
 - API Docs: http://localhost:8000/docs
+- Security: See [SECURITY.md](SECURITY.md)
+
+## 🤝 Contributing
+
+We welcome contributions! Please see:
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) - Code of conduct
+- [CHANGELOG.md](CHANGELOG.md) - Version history
+
+## 📋 Additional Resources
+
+- [Deployment Guide](docs/DEPLOYMENT.md) - Deploy to production
+- [API Documentation](docs/API.md) - Complete API reference
+- [Security Policy](SECURITY.md) - Report vulnerabilities
+- [Docker Setup](docker-compose.yml) - Container deployment
+
+## 🌟 Star History
+
+If you find this project useful, please consider giving it a star! ⭐
+
+## 📄 Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 
 ---
 
 **Built with ❤️ for the DeFi community**
+
+[![GitHub stars](https://img.shields.io/github/stars/yourusername/ChainCompass-AI?style=social)](https://github.com/yourusername/ChainCompass-AI/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/yourusername/ChainCompass-AI?style=social)](https://github.com/yourusername/ChainCompass-AI/network/members)
+[![GitHub issues](https://img.shields.io/github/issues/yourusername/ChainCompass-AI)](https://github.com/yourusername/ChainCompass-AI/issues)

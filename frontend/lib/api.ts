@@ -17,6 +17,19 @@ export interface SwapResponse {
   time_seconds?: number;
   fees_usd?: number;
   output_usd?: number;
+  price_impact?: number;
+  gas_cost_usd?: number;
+}
+
+export interface TransactionSubmissionRequest {
+  user_address: string;
+  from_chain_id: number;
+  to_chain_id: number;
+  from_token: string;
+  to_token: string;
+  from_amount: string;
+  to_amount: string;
+  tx_hash: string;
 }
 
 // Chain ID mapping for LI.FI API (numeric chain IDs)
@@ -26,6 +39,10 @@ const CHAIN_IDS: Record<string, number> = {
   'Arbitrum': 42161,
   'Optimism': 10,
   'Base': 8453,
+  'Sepolia': 11155111,
+  'Arbitrum Sepolia': 421614,
+  'Optimism Sepolia': 11155420,
+  'Base Sepolia': 84532,
 };
 
 // Token symbols for LI.FI (they handle token resolution)
@@ -77,6 +94,50 @@ export const api = {
         throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
       }
       throw new Error('Network error. Please try again.');
+    }
+  },
+
+  async getNonce(address: string) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/v1/auth/nonce`, {
+        address,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error getting nonce:', error);
+      throw new Error('Failed to get nonce for signing');
+    }
+  },
+
+  async submitTransaction(request: TransactionSubmissionRequest) {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/v1/transactions/submit`,
+        request
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error submitting transaction:', error);
+      if (error.response) {
+        const detail = error.response.data?.detail || 'Failed to submit transaction';
+        throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+      }
+      throw new Error('Network error. Please try again.');
+    }
+  },
+
+  async getTransactionHistory(address: string, limit: number = 50) {
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/api/v1/transactions/history`,
+        {
+          params: { address, limit },
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching transaction history:', error);
+      throw new Error('Failed to fetch transaction history');
     }
   },
 

@@ -2,9 +2,12 @@ import os
 import json
 import asyncio
 from typing import Optional
+import secrets
+import uuid
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, Query, Depends, Cookie
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from langchain_openai import ChatOpenAI
@@ -13,6 +16,13 @@ from dotenv import load_dotenv
 from pydantic import SecretStr, BaseModel, Field
 from cachetools import TTLCache
 from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential, retry_if_exception_type
+from sqlalchemy.orm import Session
+from database import get_db, TransactionHistory, UserSession, engine
+from database import Base
+from validation import quote_limiter, tx_limiter, validate_ethereum_address, validate_chain_id, validate_amount
+
+# Create tables
+Base.metadata.create_all(bind=engine)
 
 # --- 1. Load and Validate Environment Variables ---
 # This loads the .env file at the start of the application.
@@ -30,26 +40,52 @@ if not LIFI_API_KEY or not OPENAI_API_KEY:
 print("✅ API keys and environment variables loaded successfully.")
 
 
-# --- 2. Initialize Application and AI Components ---
+# --- 2. Define Lifespan Context Manager ---
 
-# Create an instance of the FastAPI class, which is our backend server.
+# Shared HTTP client with connection pooling
+async_client: Optional[httpx.AsyncClient] = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup event
+    global async_client
+    async_client = httpx.AsyncClient(
+        base_url="https://li.quest",
+        timeout=httpx.Timeout(15.0, read=15.0, connect=10.0),
+        headers={
+            "accept": "application/json",
+            "x-lifi-api-key": LIFI_API_KEY,
+        },
+        limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
+        transport=httpx.AsyncHTTPTransport(retries=0)
+    )
+    yield
+    # Shutdown event
+    if async_client is not None:
+        await async_client.aclose()
+        async_client = None
+
+
+# --- 3. Initialize Application and AI Components ---
+
+# Create an instance of the FastAPI class with lifespan
 app = FastAPI(
     title="ChainCompass AI API",
     description="AI-powered cross-chain DeFi route optimization",
     version="2.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # Enable CORS for local dev and deployed frontend
 allowed_origins = [
-    "http://localhost",
-    "http://localhost:3000",  # Next.js frontend
+    "http://localhost:3000",
     "http://localhost:8501",
-    "http://127.0.0.1:3000",  # Next.js frontend
+    "http://127.0.0.1:3000",
     "http://127.0.0.1:8501",
-    "https://chaincompass-ai-theno1explorer.streamlit.app",
-    "*"  # Allow all origins for development (remove in production)
+    "https://chaincompass-ai.vercel.app",  # Production Vercel domain (update when deployed)
 ]
 
 app.add_middleware(
@@ -196,30 +232,6 @@ async def get_api_stats():
         }
     }
 
-# Shared HTTP client with connection pooling
-async_client: Optional[httpx.AsyncClient] = None
-
-@app.on_event("startup")
-async def on_startup() -> None:
-    global async_client
-    async_client = httpx.AsyncClient(
-        base_url="https://li.quest",
-        timeout=httpx.Timeout(15.0, read=15.0, connect=10.0),
-        headers={
-            "accept": "application/json",
-            "x-lifi-api-key": LIFI_API_KEY,
-        },
-        limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
-        transport=httpx.AsyncHTTPTransport(retries=0)
-    )
-
-@app.on_event("shutdown")
-async def on_shutdown() -> None:
-    global async_client
-    if async_client is not None:
-        await async_client.aclose()
-        async_client = None
-
 # In-memory TTL cache for quotes
 quote_cache: TTLCache = TTLCache(maxsize=1000, ttl=60)
 
@@ -259,6 +271,34 @@ class TokenInfo(BaseModel):
     decimals: int
     address: Optional[str] = None
 
+# New models for auth and transactions
+class NonceRequest(BaseModel):
+    address: str
+
+class NonceResponse(BaseModel):
+    nonce: str
+    message: str
+
+class VerifyMessageRequest(BaseModel):
+    address: str
+    message: str
+    signature: str
+
+class TransactionSubmission(BaseModel):
+    user_address: str
+    from_chain_id: int
+    to_chain_id: int
+    from_token: str
+    to_token: str
+    from_amount: str
+    to_amount: str
+    tx_hash: str
+
+class TransactionStatus(BaseModel):
+    tx_hash: str
+    status: str
+    user_address: str
+
 class RouteStep(BaseModel):
     tool: str
     from_chain: str
@@ -297,6 +337,17 @@ async def get_lifi_quote(
     global async_client
     if async_client is None:
         raise HTTPException(status_code=503, detail="HTTP client not ready")
+
+    # Rate limiting
+    if not quote_limiter.is_allowed(fromAddress):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Max 50 requests/minute")
+    
+    # Validate inputs
+    if not validate_ethereum_address(fromAddress):
+        raise HTTPException(status_code=400, detail="Invalid Ethereum address")
+    
+    if not validate_amount(fromAmount):
+        raise HTTPException(status_code=400, detail="Invalid amount. Must be between 0.001 and 1,000,000")
 
     req = QuoteRequest(
         fromChain=fromChain,
@@ -489,3 +540,175 @@ async def get_detailed_quote(
         "raw_data": raw_quote_data  # Include full data for advanced users
     }
 
+# ============= NEW ENDPOINTS: SIWE Auth + Transaction History =============
+
+@app.post("/api/v1/auth/nonce")
+async def get_nonce(request: NonceRequest, db: Session = Depends(get_db)):
+    """
+    Generate a nonce for SIWE (Sign-In with Ethereum) authentication.
+    Frontend will sign this nonce with their private key.
+    """
+    nonce = secrets.token_hex(16)
+    
+    # Check if session exists for this address
+    session = db.query(UserSession).filter(UserSession.address == request.address).first()
+    if not session:
+        session = UserSession(address=request.address, nonce=nonce)
+        db.add(session)
+    else:
+        session.nonce = nonce
+    
+    db.commit()
+    
+    return NonceResponse(
+        nonce=nonce,
+        message=f"Sign this message to authenticate with ChainCompass AI.\nNonce: {nonce}"
+    )
+
+@app.post("/api/v1/auth/verify")
+async def verify_signature(request: VerifyMessageRequest, db: Session = Depends(get_db)):
+    """
+    Verify SIWE signature and authenticate user.
+    In production, use proper SIWE library to verify.
+    """
+    # Get session
+    session = db.query(UserSession).filter(UserSession.address == request.address).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="No nonce found. Call /api/v1/auth/nonce first.")
+    
+    # In production, use py-siwe to verify the signature
+    # For now, just verify that signature is not empty (mock)
+    if not request.signature or len(request.signature) < 10:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+    
+    # Mark as authenticated
+    session.is_authenticated = True
+    db.commit()
+    
+    return {
+        "status": "authenticated",
+        "address": request.address,
+        "message": "Successfully authenticated with ChainCompass AI"
+    }
+
+@app.post("/api/v1/transactions/submit")
+async def submit_transaction(
+    tx: TransactionSubmission,
+    db: Session = Depends(get_db)
+):
+    """
+    Submit a completed transaction to store in history.
+    """
+    # Rate limiting
+    if not tx_limiter.is_allowed(tx.user_address):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Max 10 transactions/minute")
+    
+    # Validate address format (basic)
+    if not validate_ethereum_address(tx.user_address):
+        raise HTTPException(status_code=400, detail="Invalid address format")
+    
+    # Validate chain IDs
+    allowed_chains = [1, 137, 42161, 10, 8453, 11155111, 421614, 11155420, 84532]
+    if not validate_chain_id(tx.from_chain_id, allowed_chains):
+        raise HTTPException(status_code=400, detail="Invalid from_chain_id")
+    if not validate_chain_id(tx.to_chain_id, allowed_chains):
+        raise HTTPException(status_code=400, detail="Invalid to_chain_id")
+    
+    # Validate amounts
+    if not validate_amount(tx.from_amount):
+        raise HTTPException(status_code=400, detail="Invalid from_amount")
+    if not validate_amount(tx.to_amount):
+        raise HTTPException(status_code=400, detail="Invalid to_amount")
+    
+    # Create transaction record
+    transaction = TransactionHistory(
+        user_address=tx.user_address,
+        from_chain_id=tx.from_chain_id,
+        to_chain_id=tx.to_chain_id,
+        from_token=tx.from_token,
+        to_token=tx.to_token,
+        from_amount=tx.from_amount,
+        to_amount=tx.to_amount,
+        tx_hash=tx.tx_hash,
+        status="pending"  # Will be updated via block explorer polling
+    )
+    
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+    
+    return {
+        "id": transaction.id,
+        "tx_hash": transaction.tx_hash,
+        "status": transaction.status,
+        "created_at": transaction.created_at
+    }
+
+@app.get("/api/v1/transactions/history")
+async def get_transaction_history(
+    address: str = Query(...),
+    limit: int = Query(default=50, le=100),
+    db: Session = Depends(get_db)
+):
+    """
+    Get transaction history for a user address.
+    """
+    # Validate address format
+    if not address.startswith("0x") or len(address) != 42:
+        raise HTTPException(status_code=400, detail="Invalid address format")
+    
+    transactions = db.query(TransactionHistory)\
+        .filter(TransactionHistory.user_address == address)\
+        .order_by(TransactionHistory.created_at.desc())\
+        .limit(limit)\
+        .all()
+    
+    return {
+        "address": address,
+        "count": len(transactions),
+        "transactions": [
+            {
+                "id": tx.id,
+                "from_chain_id": tx.from_chain_id,
+                "to_chain_id": tx.to_chain_id,
+                "from_token": tx.from_token,
+                "to_token": tx.to_token,
+                "from_amount": tx.from_amount,
+                "to_amount": tx.to_amount,
+                "tx_hash": tx.tx_hash,
+                "status": tx.status,
+                "created_at": tx.created_at,
+                "confirmed_at": tx.confirmed_at
+            }
+            for tx in transactions
+        ]
+    }
+
+@app.patch("/api/v1/transactions/{tx_hash}/status")
+async def update_transaction_status(
+    tx_hash: str,
+    status: str = Query(..., pattern="^(pending|completed|failed)$"),
+    db: Session = Depends(get_db)
+):
+    """
+    Update transaction status (called by backend block explorer poller).
+    """
+    transaction = db.query(TransactionHistory).filter(
+        TransactionHistory.tx_hash == tx_hash
+    ).first()
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    transaction.status = status
+    if status == "completed":
+        from datetime import datetime
+        transaction.confirmed_at = datetime.utcnow()
+    
+    db.commit()
+    
+    return {
+        "tx_hash": transaction.tx_hash,
+        "status": transaction.status,
+        "confirmed_at": transaction.confirmed_at
+    }
