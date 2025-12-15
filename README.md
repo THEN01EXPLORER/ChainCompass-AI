@@ -272,8 +272,11 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 
 ---
 
+
 **Built with ❤️ for the DeFi community**
 
 [![GitHub stars](https://img.shields.io/github/stars/yourusername/ChainCompass-AI?style=social)](https://github.com/yourusername/ChainCompass-AI/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/yourusername/ChainCompass-AI?style=social)](https://github.com/yourusername/ChainCompass-AI/network/members)
 [![GitHub issues](https://img.shields.io/github/issues/yourusername/ChainCompass-AI)](https://github.com/yourusername/ChainCompass-AI/issues)
+
+> **Note:** Project structure cleaned up and simplified on 2025-12-16.
