@@ -1,4 +1,4 @@
 @echo off
 echo Starting ChainCompass AI Frontend...
-cd frontend
+cd ..\frontend
 npm run dev

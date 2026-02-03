@@ -9,7 +9,7 @@ npx kill-port 3000
 
 echo.
 echo [2/3] Clearing Next.js cache...
-cd frontend
+cd ..\frontend
 if exist .next rmdir /s /q .next
 echo Cache cleared!
 

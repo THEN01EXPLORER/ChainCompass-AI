@@ -5,12 +5,12 @@ echo ========================================
 echo.
 
 echo [1/2] Starting Backend (FastAPI)...
-start "ChainCompass Backend" cmd /k "cd /d %~dp0 && .venv\Scripts\activate && uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+start "ChainCompass Backend" cmd /k "cd /d %~dp0..\backend && .venv\Scripts\activate && uvicorn main:app --reload --host 0.0.0.0 --port 8000"
 
 timeout /t 3 /nobreak >nul
 
 echo [2/2] Starting Frontend (Next.js)...
-start "ChainCompass Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
+start "ChainCompass Frontend" cmd /k "cd /d %~dp0..\frontend && npm run dev"
 
 echo.
 echo ========================================
