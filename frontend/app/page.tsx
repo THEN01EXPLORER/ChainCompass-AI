@@ -11,44 +11,70 @@ import StatsPanel from '@/components/StatsPanel';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900">
-      <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-      
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background orbs for organic feel */}
+      <div className="bg-orb bg-orb-1" />
+      <div className="bg-orb bg-orb-2" />
+      <div className="bg-orb bg-orb-3" />
+
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03]" />
+
+      {/* Noise texture */}
+      <div className="absolute inset-0 noise-overlay" />
+
       <div className="relative z-10">
         <Navigation />
-        
-        <main className="container mx-auto px-4 py-8 max-w-7xl">
+
+        <main className="container mx-auto px-4 py-12 max-w-7xl">
+          {/* Hero Section */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="text-center mb-16"
+          >
+            <h1 className="text-5xl md:text-6xl font-bold mb-4">
+              <span className="text-white">Navigate </span>
+              <span className="gradient-text">Cross-Chain</span>
+              <span className="text-white"> DeFi</span>
+            </h1>
+            <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto">
+              AI-powered route optimization for seamless multi-chain swaps
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 25 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
           >
             <MetricsGrid />
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 25 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="mt-8"
+            transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="mt-10"
           >
             <StatsPanel />
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 25 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="mt-8"
+            transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="mt-12"
           >
             <SwapInterface />
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 25 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="mt-8"
+            transition={{ duration: 0.6, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="mt-16"
           >
             <AnalyticsCharts />
           </motion.div>
@@ -61,3 +87,4 @@ export default function Home() {
     </div>
   );
 }
+

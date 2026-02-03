@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BarChart3, TrendingUp, Activity, DollarSign } from 'lucide-react';
+import { BarChart3, TrendingUp, Activity, DollarSign, Zap } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -24,78 +24,113 @@ const chainActivity = [
   { chain: 'Ethereum', volume: 90, growth: '+5%', color: '#627EEA' },
 ];
 
+const stats = [
+  { label: '24h Volume', value: '$3.2M', change: '+15.3%', icon: DollarSign, color: 'emerald' },
+  { label: 'Total Swaps', value: '1,247', change: '+8.2%', icon: Activity, color: 'cyan' },
+  { label: 'Avg Fee', value: '$2.45', change: '-5.1%', icon: Zap, color: 'amber' },
+  { label: 'Active Chains', value: '5', change: '+1', icon: BarChart3, color: 'violet' },
+];
+
+const colorMap: Record<string, { text: string; bg: string; border: string }> = {
+  emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+  cyan: { text: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
+  amber: { text: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+  violet: { text: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20' },
+};
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-gray-900/95 border border-white/10 rounded-lg p-3 shadow-xl">
+        <p className="text-white font-medium text-sm">{label}</p>
+        <p className="text-violet-400 text-xs mt-1">
+          ${payload[0]?.value?.toLocaleString()}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function AnalyticsPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900">
-      <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-      
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="bg-orb bg-orb-1" />
+      <div className="bg-orb bg-orb-2" />
+      <div className="bg-orb bg-orb-3" />
+
+      <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03]" />
+
       <div className="relative z-10">
         <Navigation />
-        
-        <main className="container mx-auto px-4 py-8 max-w-7xl">
+
+        <main className="container mx-auto px-4 py-12 max-w-7xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
+            className="mb-10"
           >
-            <h1 className="text-4xl font-bold text-white mb-2">Advanced Analytics</h1>
-            <p className="text-purple-300">Deep insights into cross-chain activity</p>
+            <h1 className="text-4xl font-bold mb-2">
+              <span className="text-white">Advanced </span>
+              <span className="gradient-text">Analytics</span>
+            </h1>
+            <p className="text-gray-500">Deep insights into cross-chain activity</p>
           </motion.div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            {[
-              { label: '24h Volume', value: '$3.2M', change: '+15.3%', icon: DollarSign, color: 'green' },
-              { label: 'Total Swaps', value: '1,247', change: '+8.2%', icon: Activity, color: 'blue' },
-              { label: 'Avg Fee', value: '$2.45', change: '-5.1%', icon: TrendingUp, color: 'purple' },
-              { label: 'Active Chains', value: '5', change: '+1', icon: BarChart3, color: 'yellow' },
-            ].map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="glass rounded-2xl p-6"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <stat.icon className={`w-8 h-8 text-${stat.color}-400`} />
-                  <span className={`text-${stat.color}-400 text-sm font-semibold`}>
-                    {stat.change}
-                  </span>
-                </div>
-                <div className="text-3xl font-bold text-white mb-1">{stat.value}</div>
-                <div className="text-gray-400 text-sm">{stat.label}</div>
-              </motion.div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+            {stats.map((stat, i) => {
+              const colors = colorMap[stat.color];
+              return (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.08 }}
+                  className="glass rounded-2xl p-5"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`p-2.5 rounded-xl ${colors.bg} border ${colors.border}`}>
+                      <stat.icon className={`w-5 h-5 ${colors.text}`} />
+                    </div>
+                    <span className={`text-sm font-semibold ${stat.change.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {stat.change}
+                    </span>
+                  </div>
+                  <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
+                  <div className="text-gray-500 text-sm">{stat.label}</div>
+                </motion.div>
+              );
+            })}
           </div>
 
           {/* Volume Chart */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass rounded-3xl p-8 mb-8"
+            transition={{ delay: 0.3 }}
+            className="glass rounded-3xl p-7 mb-8"
           >
-            <h2 className="text-2xl font-bold text-white mb-6">Weekly Volume Trend</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white">Weekly Volume Trend</h2>
+              <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
+                <TrendingUp className="w-4 h-4" />
+                +24.5% this week
+              </div>
+            </div>
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={volumeData}>
                 <defs>
                   <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" />
-                <XAxis dataKey="date" stroke="#9ca3af" />
-                <YAxis stroke="#9ca3af" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                    border: '1px solid rgba(139, 92, 246, 0.3)',
-                    borderRadius: '12px',
-                  }}
-                />
-                <Area type="monotone" dataKey="volume" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorVolume)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+                <XAxis dataKey="date" stroke="#4b5563" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#4b5563" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+                <Tooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="volume" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorVolume)" />
               </AreaChart>
             </ResponsiveContainer>
           </motion.div>
@@ -104,33 +139,39 @@ export default function AnalyticsPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="glass rounded-3xl p-8"
+            transition={{ delay: 0.4 }}
+            className="glass rounded-3xl p-7"
           >
-            <h2 className="text-2xl font-bold text-white mb-6">Chain Activity</h2>
+            <h2 className="text-xl font-bold text-white mb-6">Chain Activity</h2>
             <div className="space-y-4">
               {chainActivity.map((chain, i) => (
-                <div key={chain.chain} className="glass-dark rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
+                <motion.div
+                  key={chain.chain}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 + i * 0.1 }}
+                  className="glass-dark rounded-xl p-4"
+                >
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chain.color }}></div>
-                      <span className="text-white font-semibold">{chain.chain}</span>
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chain.color }} />
+                      <span className="text-white font-medium">{chain.chain}</span>
                     </div>
-                    <span className="text-green-400 text-sm font-semibold">{chain.growth}</span>
+                    <span className="text-emerald-400 text-sm font-medium">{chain.growth}</span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="flex-1 bg-white/5 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-1000"
-                        style={{
-                          width: `${(chain.volume / 450) * 100}%`,
-                          backgroundColor: chain.color,
-                        }}
-                      ></div>
+                    <div className="flex-1 bg-white/5 rounded-full h-2.5 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(chain.volume / 450) * 100}%` }}
+                        transition={{ duration: 1, delay: 0.6 + i * 0.1 }}
+                        className="h-full rounded-full"
+                        style={{ backgroundColor: chain.color }}
+                      />
                     </div>
-                    <span className="text-white font-bold">${chain.volume}M</span>
+                    <span className="text-white font-bold text-sm w-16 text-right">${chain.volume}M</span>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </motion.div>

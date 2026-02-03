@@ -36,8 +36,8 @@ cd ChainCompass-AI
 
 2. **Set up environment variables**
 ```bash
-# Create .env file in root directory
-cp .env.example .env
+# Create .env file in backend directory
+cp backend/.env.example backend/.env
 
 # Add your API keys:
 # OPENAI_API_KEY=sk-your-key
@@ -48,6 +48,7 @@ cp .env.example .env
 
 **Backend:**
 ```bash
+cd backend
 python -m venv .venv
 .venv\Scripts\activate  # Windows
 # source .venv/bin/activate  # Linux/Mac
@@ -64,12 +65,13 @@ npm install
 
 **Option 1: One command (Windows)**
 ```bash
-start-all.bat
+scripts\start-all.bat
 ```
 
 **Option 2: Manual start**
 ```bash
 # Terminal 1 - Backend
+cd backend
 .venv\Scripts\activate
 uvicorn main:app --reload
 
@@ -109,14 +111,14 @@ npm run dev
 ```
 ChainCompass-AI/
 ├── frontend/                 # Next.js frontend
-│   ├── app/                 # App router pages
-│   ├── components/          # React components
-│   ├── lib/                 # Utilities and API client
-│   └── public/              # Static assets
-├── main.py                  # FastAPI backend
-├── requirements.txt         # Python dependencies
-├── .env                     # Environment variables (create this)
-└── README.md               # This file
+├── backend/                  # FastAPI backend
+│   ├── main.py              # App entry point
+│   ├── database.py          # Database models
+│   └── requirements.txt     # Python dependencies
+├── scripts/                  # Management scripts
+├── docs/                     # Documentation
+├── docker-compose.yml       # Docker setup
+└── README.md                # This file
 ```
 
 ## 🎯 API Endpoints
